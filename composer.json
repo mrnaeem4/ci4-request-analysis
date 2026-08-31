@@ -1,0 +1,41 @@
+{
+    "name": "mrnaeem4/ci4-request-analysis",
+    "description": "CodeIgniter 4 library that intercepts incoming HTTP requests and asynchronously sends structured JSON request logs to an Analysis Server.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "codeigniter4",
+        "request-log",
+        "analysis",
+        "filter",
+        "async",
+        "guzzle"
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "codeigniter4/framework": "^4.3",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "MrNaeem\\Ci4RequestAnalysis\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MrNaeem\\Ci4RequestAnalysis\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "support": {
+        "issues": "https://github.com/mrnaeem4/ci4-request-analysis/issues"
+    }
+}

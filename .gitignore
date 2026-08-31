@@ -1,0 +1,35 @@
+# PHP runtime files
+*.log
+*.txt
+
+# Composer
+/vendor/
+composer.lock
+
+# CodeIgniter 4
+/app/Config/**/*.local.php
+/writable/
+/public/.htaccess
+.env
+.env.*
+!.env.example
+
+# PHPUnit
+/.phpunit.result.cache
+.phpunit.cache/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp / build
+/tmp/
+/build/
+/dist/
+
+# Analysis queue (local spool)
+/analysis_queue/
