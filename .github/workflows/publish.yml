@@ -4,15 +4,22 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published]
 
 jobs:
   publish:
     name: Publish package
     runs-on: ubuntu-latest
     steps:
-      - name: Publish to Packagist
-        uses: packagist/publish@v1
-        with:
-          package-name: mrnaeem4/ci4-request-analysis
-          username: ${{ secrets.PACKAGIST_USERNAME }}
-          token: ${{ secrets.PACKAGIST_TOKEN }}
+      - name: Trigger Packagist update
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+          PACKAGIST_REPOSITORY: https://github.com/mrnaeem4/ci4-request-analysis
+        run: |
+          curl -sS -X POST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}" \
+            -d "{\"repository\":\"${PACKAGIST_REPOSITORY}\"}" \
+            https://packagist.org/api/update-package
