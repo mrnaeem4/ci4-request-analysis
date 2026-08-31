@@ -3,18 +3,23 @@
 namespace MrNaeem\Ci4RequestAnalysis\Services;
 
 use CodeIgniter\HTTP\RequestInterface;
-use MrNaeem\Ci4RequestAnalysis\Config\Analysis;
+use MrNaeem\Ci4RequestAnalysis\Config\RequestLog;
 
-class AnalysisService
+/**
+ * Core service: collects request metadata, applies redaction/truncation and
+ * writes one JSON line (JSONL) directly to the CI4 logs directory with daily
+ * rotation + gzip compression + retention pruning.
+ */
+class RequestLogService
 {
     protected $config;
 
-    public function __construct(?Analysis $config = null)
+    public function __construct(?RequestLog $config = null)
     {
-        $this->config = $config ?? config(Analysis::class);
+        $this->config = $config ?? config(RequestLog::class);
     }
 
-    public function getConfig(): Analysis
+    public function getConfig(): RequestLog
     {
         return $this->config;
     }
@@ -71,82 +76,52 @@ class AnalysisService
         ];
     }
 
-    public function queue(array $logData): bool
+    /**
+     * Append one JSONL line to the log file, rotating first if needed.
+     */
+    public function write(array $logData): bool
     {
-        $dir = $this->config->queueDir;
+        $this->rotateIfNeeded();
+
+        $line = json_encode([
+            'log_data'     => $logData,
+            'retry_count'  => 0,
+            'last_attempt' => null,
+            'created_at'   => date('c'),
+        ]) . "\n";
+
+        $path = $this->logPath();
+        $dir = dirname($path);
         if (! is_dir($dir)) {
             if (! @mkdir($dir, 0755, true) && ! is_dir($dir)) {
                 return false;
             }
         }
 
-        $files = glob($dir . DIRECTORY_SEPARATOR . '*.json');
-        if (is_array($files) && count($files) >= $this->config->maxQueue) {
-            usort($files, function ($a, $b) {
-                return filemtime($a) - filemtime($b);
-            });
-            $toDelete = count($files) - $this->config->maxQueue + 1;
-            foreach (array_slice($files, 0, $toDelete) as $oldFile) {
-                @unlink($oldFile);
+        return @file_put_contents($path, $line, FILE_APPEND | LOCK_EX) !== false;
+    }
+
+    /**
+     * Rotate the active log file when it belongs to a previous day, compress
+     * it with gzip and prune logs older than the retention window.
+     *
+     * Called automatically on write and manually via requestlog:rotate.
+     */
+    public function rotate(): void
+    {
+        $path = $this->logPath();
+
+        if (file_exists($path)) {
+            $day = date('Y-m-d', filemtime($path));
+            if ($day !== date('Y-m-d')) {
+                $rotated = $this->buildRotatedName($path, $day);
+                if (@rename($path, $rotated)) {
+                    $this->compress($rotated);
+                }
             }
         }
 
-        $queueItem = [
-            'log_data'     => $logData,
-            'retry_count'  => 0,
-            'last_attempt' => null,
-            'created_at'   => date('c'),
-        ];
-
-        $filename = $dir . DIRECTORY_SEPARATOR . uniqid('analysis_', true) . '.json';
-        return @file_put_contents($filename, json_encode($queueItem), LOCK_EX) !== false;
-    }
-
-    public function triggerSend(): void
-    {
-        if (! defined('ROOTPATH')) {
-            return;
-        }
-
-        $spark = ROOTPATH . 'spark';
-
-        if (DIRECTORY_SEPARATOR === '\\') {
-            @pclose(@popen('start /B php "' . $spark . '" analysis:send > NUL 2>&1', 'r'));
-        } else {
-            @exec('php ' . escapeshellarg($spark) . ' analysis:send > /dev/null 2>&1 &');
-        }
-    }
-
-    public function sendFromQueue(string $file): bool
-    {
-        $content = @file_get_contents($file);
-        if ($content === false) {
-            return false;
-        }
-
-        $data = json_decode($content, true);
-        if (! is_array($data) || ! isset($data['log_data'])) {
-            return false;
-        }
-
-        try {
-            $client = new \GuzzleHttp\Client([
-                'timeout'         => $this->config->timeout,
-                'connect_timeout' => $this->config->timeout,
-            ]);
-
-            $response = $client->post($this->config->serverUrl, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'X-API-Key'    => $this->config->apiKey,
-                ],
-                'body' => json_encode($data['log_data']),
-            ]);
-
-            return $response->getStatusCode() === 200;
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-            return false;
-        }
+        $this->prune();
     }
 
     public function redact(array $data, array $fields): array
@@ -195,6 +170,90 @@ class AnalysisService
         }
 
         return $metadata;
+    }
+
+    protected function rotateIfNeeded(): void
+    {
+        $path = $this->logPath();
+
+        if (! file_exists($path)) {
+            return;
+        }
+
+        $day = date('Y-m-d', filemtime($path));
+        if ($day !== date('Y-m-d')) {
+            $rotated = $this->buildRotatedName($path, $day);
+            if (@rename($path, $rotated)) {
+                $this->compress($rotated);
+            }
+        }
+
+        $this->prune();
+    }
+
+    protected function compress(string $path): bool
+    {
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return false;
+        }
+
+        if (@file_put_contents($path . '.gz', gzencode($data, 6)) === false) {
+            return false;
+        }
+
+        @unlink($path);
+        return true;
+    }
+
+    protected function prune(): void
+    {
+        $dir = dirname($this->logPath());
+        $cutoff = strtotime('-' . $this->config->retentionDays . ' days');
+
+        if ($cutoff === false) {
+            return;
+        }
+
+        foreach (glob($dir . DIRECTORY_SEPARATOR . 'analysis-*.log.gz') as $file) {
+            if (@filemtime($file) !== false && @filemtime($file) < $cutoff) {
+                @unlink($file);
+            }
+        }
+    }
+
+    protected function buildRotatedName(string $path, string $day): string
+    {
+        $info = pathinfo($path);
+        $ext = isset($info['extension']) ? $info['extension'] : 'log';
+
+        return $info['dirname'] . DIRECTORY_SEPARATOR
+            . $info['filename'] . '-' . $day . '.' . $ext;
+    }
+
+    protected function logPath(): string
+    {
+        $dir = $this->logDirectory();
+        $file = ltrim($this->config->logFile, '/\\');
+
+        return rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $file;
+    }
+
+    protected function logDirectory(): string
+    {
+        if ($this->config->logDir !== '') {
+            return $this->config->logDir;
+        }
+
+        if (defined('WRITEPATH')) {
+            return rtrim(WRITEPATH, '/\\') . '/logs';
+        }
+
+        if (defined('ROOTPATH')) {
+            return rtrim(ROOTPATH, '/\\') . '/writable/logs';
+        }
+
+        return rtrim(sys_get_temp_dir(), '/\\') . '/logs';
     }
 
     protected function ipInCidr(string $ip, string $range): bool

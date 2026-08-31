@@ -31,5 +31,4 @@ Thumbs.db
 /build/
 /dist/
 
-# Analysis queue (local spool)
-/analysis_queue/
+/ai/

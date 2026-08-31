@@ -5,37 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-31
+
+### Changed
+
+- **Architecture overhaul**: logs are no longer sent to an external Analysis
+  Server. The filter now writes directly to the CodeIgniter `writable/logs`
+  directory as JSON Lines.
+- Configuration renamed from `ANALYSIS_*` to `REQUEST_LOG_*`; config class
+  `Analysis` → `RequestLog`.
+- Filter renamed `AnalysisFilter` → `RequestLogFilter` (alias `requestlog`).
+- Service renamed `AnalysisService` → `RequestLogService`.
+- Single log file `analysis.log` with automatic daily rotation + gzip
+  compression + retention pruning.
+
+### Removed
+
+- `AnalysisSend` command, local queue, and `failed/` retry handling.
+- Guzzle dependency and `ANALYSIS_SERVER_URL` / `ANALYSIS_API_KEY` config.
+
+### Added
+
+- `requestlog:rotate` spark command — manual/cron fallback for rotation,
+  gzip compression and pruning of old logs.
+- `REQUEST_LOG_RETENTION_DAYS` config (default 30) to control how many days of
+  compressed logs are kept.
+
 ## [1.0.0] - 2026-08-31
 
 ### Added
 
-- `AnalysisFilter` (CI4 filter) — manual per-route attachment, enabled check,
-  IP whitelist skip, non-blocking queue + background send.
-- `AnalysisService` — request metadata collection (`timestamp`, `domain`,
-  `path`, `method`, `srcip`, `user_agent`, `query_string`, `headers`,
-  `raw_body`, `file_count`, `file_names`, `file_metadata`).
-- Sensitive-field redaction (recursive, case-insensitive; default:
-  `password`, `nik`, `Api-Key`, `no_telp`).
-- Body truncation at `ANALYSIS_MAX_BODY_SIZE` with configurable suffix.
-- File upload metadata (original name, size, MIME, extension, SHA-256 hash,
-  double-extension detection) — binary content is never sent.
-- Local file-based queue with `ANALYSIS_MAX_QUEUE` enforcement (oldest dropped).
-- `AnalysisSend` spark command — sends queued entries, retries on failure,
-  moves items to `failed/` after `ANALYSIS_MAX_RETRIES`.
-- `Analysis` config class reading all `ANALYSIS_*` environment variables.
-- IP/CIDR whitelist (RFC1918 + localhost by default) via `AnalysisService`.
-- Multi-tenant identification from `HTTP_HOST` subdomain.
-- Guzzle 7 HTTP client with configurable timeout.
-- PHP 7.4 and PHP 8.4+ support.
+- Initial release: `AnalysisFilter`, `AnalysisService`, `Analysis` config and
+  `AnalysisSend` command with queue-based asynchronous delivery to an Analysis
+  Server. Superseded by 2.0.0.
 
-## [Unreleased]
-
-### Planned
-
-- Unit tests (PHPUnit) for `AnalysisService` and `AnalysisSend`.
-- Analysis Server (Docker: PHP-FPM + Nginx on Alpine) with daily gzip log
-  rotation and Wazuh integration.
-- k6 load test script.
-- Sample CI4 application showing integration.
-
+[2.0.0]: https://github.com/mrnaeem4/ci4-request-analysis/releases/tag/v2.0.0
 [1.0.0]: https://github.com/mrnaeem4/ci4-request-analysis/releases/tag/v1.0.0

@@ -1,20 +1,18 @@
 {
     "name": "mrnaeem4/ci4-request-analysis",
-    "description": "CodeIgniter 4 library that intercepts incoming HTTP requests and asynchronously sends structured JSON request logs to an Analysis Server.",
+    "description": "CodeIgniter 4 library that intercepts incoming HTTP requests and writes structured JSON request logs (JSONL) to the CI4 logs directory with daily rotation and gzip compression.",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "codeigniter4",
         "request-log",
-        "analysis",
+        "jsonl",
         "filter",
-        "async",
-        "guzzle"
+        "log-rotation"
     ],
     "require": {
         "php": "^7.4 || ^8.0",
-        "codeigniter4/framework": "^4.3",
-        "guzzlehttp/guzzle": "^7.0"
+        "codeigniter4/framework": "^4.3"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5"
