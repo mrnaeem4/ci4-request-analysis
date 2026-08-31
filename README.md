@@ -21,7 +21,6 @@ rotation with gzip compression.
 - File upload metadata captured without binary content (name, size, MIME,
   extension, SHA-256 hash, double-extension detection).
 - IP/CIDR whitelist to skip private/internal traffic.
-- Multi-tenant identification via subdomain (`HTTP_HOST`).
 - PHP 7.4 and PHP 8.4+.
 
 ## Requirements
@@ -183,11 +182,6 @@ and is safe for concurrent PHP-FPM workers.
   adding their field names to `REQUEST_LOG_REDACT_FIELDS`.
 - `writable/logs` should not be publicly accessible (CI4 already blocks it by
   default); logs are git-ignored via `/writable/`.
-
-## Multi-tenant
-
-The tenant is derived from the subdomain via `HTTP_HOST` and stored in the
-`domain` field of the payload. No extra configuration is required.
 
 ## Wazuh integration
 
