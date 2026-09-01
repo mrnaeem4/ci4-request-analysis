@@ -53,6 +53,7 @@ class RequestLogService
         foreach ($request->headers() as $name => $header) {
             $headers[$name] = $header->getValueLine();
         }
+        $headers = $this->redact($headers, $this->config->redactFields);
 
         $fileMeta = $this->extractFileMetadata($request->getFiles() ?? []);
         $fileNames = [];
