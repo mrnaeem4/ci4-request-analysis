@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-09-01
+
+### Added
+
+- Sample implementation to exercise the logger: `sample/app/Controllers/Home.php`
+  with a JSON `POST` endpoint (`post`) and a multipart file-upload endpoint
+  (`upload`), plus `sample/app/Views/home/index.php` with test forms. Routes
+  show how to attach the `requestlog` filter per-route.
+
+### Fixed
+
+- Request headers were never redacted. The `Cookie` header (and any other
+  header listed in `REQUEST_LOG_REDACT_FIELDS`) is now redacted with
+  `***REDACTED***` in the `headers` field, matching body redaction behavior.
+
+### Changed
+
+- README: removed leftover multi-tenant specification notes.
+
 ## [2.0.0] - 2026-08-31
 
 ### Changed
@@ -39,5 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AnalysisSend` command with queue-based asynchronous delivery to an Analysis
   Server. Superseded by 2.0.0.
 
+[2.0.1]: https://github.com/mrnaeem4/ci4-request-analysis/releases/tag/v2.0.1
 [2.0.0]: https://github.com/mrnaeem4/ci4-request-analysis/releases/tag/v2.0.0
 [1.0.0]: https://github.com/mrnaeem4/ci4-request-analysis/releases/tag/v1.0.0
