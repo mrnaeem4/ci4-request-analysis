@@ -243,18 +243,100 @@ class RequestLogService
     protected function logDirectory(): string
     {
         if ($this->config->logDir !== '') {
-            return $this->config->logDir;
+            return $this->resolveDirectory($this->config->logDir);
         }
 
-        if (defined('WRITEPATH')) {
+        if (defined('WRITEPATH') && WRITEPATH !== '') {
             return rtrim(WRITEPATH, '/\\') . '/logs';
         }
 
-        if (defined('ROOTPATH')) {
+        if (defined('ROOTPATH') && ROOTPATH !== '') {
             return rtrim(ROOTPATH, '/\\') . '/writable/logs';
         }
 
         return rtrim(sys_get_temp_dir(), '/\\') . '/logs';
+    }
+
+    /**
+     * Resolve a configured log directory against the application root.
+     *
+     * A relative REQUEST_LOG_DIR (e.g. "writable/logs") must not depend on the
+     * PHP process working directory: under PHP-FPM or CI4's public/ document
+     * root it silently resolves elsewhere (e.g. public/writable/logs) and the
+     * log appears to be "missing". Absolute paths are returned unchanged.
+     */
+    protected function resolveDirectory(string $dir): string
+    {
+        if ($this->isAbsolutePath($dir)) {
+            return rtrim($dir, '/\\');
+        }
+
+        $base = $this->applicationRoot();
+
+        if ($base === null) {
+            return rtrim($dir, '/\\');
+        }
+
+        $segments = [];
+
+        foreach (explode('/', str_replace('\\', '/', $dir)) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($segments);
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
+        if ($segments === []) {
+            return $base;
+        }
+
+        return $base . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments);
+    }
+
+    /**
+     * Application root used to anchor relative paths, or null when unknown.
+     */
+    protected function applicationRoot(): ?string
+    {
+        if (defined('ROOTPATH') && ROOTPATH !== '') {
+            return rtrim(ROOTPATH, '/\\');
+        }
+
+        if (defined('APPPATH') && APPPATH !== '') {
+            return rtrim(dirname(rtrim(APPPATH, '/\\')), '/\\');
+        }
+
+        if (defined('WRITEPATH') && WRITEPATH !== '') {
+            return rtrim(dirname(rtrim(WRITEPATH, '/\\')), '/\\');
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the path is absolute (Unix root, Windows drive/UNC or a stream wrapper).
+     */
+    protected function isAbsolutePath(string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        if ($path[0] === '/' || $path[0] === '\\') {
+            return true;
+        }
+
+        if (preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1) {
+            return true;
+        }
+
+        return strpos($path, '://') !== false;
     }
 
     protected function ipInCidr(string $ip, string $range): bool

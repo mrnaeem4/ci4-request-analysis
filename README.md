@@ -51,12 +51,20 @@ REQUEST_LOG_TRUNCATE_SUFFIX  = "... [truncated]"
 REQUEST_LOG_RETENTION_DAYS   = 30
 ```
 
+> `REQUEST_LOG_ENABLED` must be set to `true` (`1` also works); the config default
+> is `false`, so the filter silently does nothing when the variable is missing.
+>
+> `REQUEST_LOG_DIR` relative paths are resolved against the application root
+> (`ROOTPATH`), so `writable/logs` always means `<project>/writable/logs` even
+> when PHP-FPM runs with `public/` as the working directory. Set an absolute
+> path if you want the log elsewhere.
+
 ### Config reference
 
 | Variable | Default | Description |
 |---|---|---|
 | `REQUEST_LOG_ENABLED` | `false` | Master switch for the filter. |
-| `REQUEST_LOG_DIR` | `''` (→ `writable/logs`) | Directory for the log file. |
+| `REQUEST_LOG_DIR` | `''` (→ `writable/logs`) | Directory for the log file. A relative path (e.g. `writable/logs`) is resolved against the application root (`ROOTPATH`), not the PHP process working directory; use an absolute path to override. |
 | `REQUEST_LOG_FILE` | `analysis.log` | Log file name (single file, rotated daily). |
 | `REQUEST_LOG_REDACT_FIELDS` | `password,nik,Api-Key,no_telp` | Comma-separated sensitive fields (case-insensitive). |
 | `REQUEST_LOG_MAX_BODY_SIZE` | `3145728` (3 MB) | `raw_body` truncation length (bytes). |
