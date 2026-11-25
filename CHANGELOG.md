@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-11-25
+
+### Fixed
+
+- A relative `REQUEST_LOG_DIR` (e.g. the documented `writable/logs`) was passed
+  to the filesystem untouched, so PHP resolved it against the process working
+  directory. Under PHP-FPM and CI4's `public/` document root the log was
+  silently written to `public/writable/logs/analysis.log` instead of
+  `writable/logs/analysis.log`, and appeared to be missing. Relative paths are
+  now resolved against the application root (`ROOTPATH`, falling back to the
+  `APPPATH`/`WRITEPATH` parent), with `.`/`..` segments normalized. Absolute
+  paths and stream wrappers are unchanged.
+
+### Changed
+
+- README: documented that `REQUEST_LOG_ENABLED` defaults to `false` and that
+  relative `REQUEST_LOG_DIR` values are anchored to the application root.
+
 ## [2.0.2] - 2026-09-01
 
 ### Added
